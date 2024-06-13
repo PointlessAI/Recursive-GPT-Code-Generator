@@ -6,6 +6,6 @@
 * enhance_script.py is advanced script generation
 * Scripts saved in /gen_code
 * Example 1 - create a script to generate realistic user profiles:
-![Update code idea and language](https://github.com/PointlessAI/recursive-gpt/blob/master/useage.png)
-* Example 2 - create a script to generate  Linux file manager after 5 iterations:
+![Update code idea and language](https://github.com/PointlessAI/recursive-gpt/blob/master/linux_gui.png)
+* After 5 iterations:
 ![Desktop File Manager](https://github.com/PointlessAI/recursive-gpt/blob/master/desktop-file-manager.png)
