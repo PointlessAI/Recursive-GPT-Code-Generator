@@ -18,7 +18,17 @@ class Recursive_GPT:
             file.write(f"{content}\n")
         print(f"File saved to {filepath}/{filename}.{ext}")
 
-    def gen_code(self, c, guidance):
+    def clean_filename(self, name):
+        # Cleans up file or folder names
+        # Remove any trailing whitespace including newline character
+        filename = name.strip()
+        # Convert to lowercase
+        lower_case_filename = filename.lower()
+        # Replace spaces with dashes
+        dash_filename = lower_case_filename.replace(" ", "-")
+        return dash_filename
+
+    def gen_code(self, c, guidance, o):
 
         enhancements = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -43,7 +53,7 @@ class Recursive_GPT:
         meta = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "user", "content": f"Generate a 5 word filename that summarizes the following enhancements: \n{enhancements}\n. Join with dashes -"}
+                {"role": "user", "content": f"Generate a 5 word filename that summarizes the following enhancements: \n{enhancements}\n."}
             ],
             temperature=1,
             max_tokens=40
@@ -52,20 +62,31 @@ class Recursive_GPT:
         e = enhancements.choices[0].message.content
         print(e)
         c = code.choices[0].message.content
-        m = meta.choices[0].message.content
+        m = self.clean_filename(meta.choices[0].message.content) # clean and add dashes to filename
         print(m)
-        self.save_file(c, "gen_code", m, "py")
+
+        self.save_file(c, f"gen_code/{self.clean_filename(o)}", m, "py")
         return e,c,m
 
     def recursive_gpt(self, c, o):
         print(c)
-        e,c,m = self.gen_code(f"Objective is to {o}. The current code is \n{c}\n .Enhance the code based on this feedback.", f"{self.no_markdown}") # raw code
+        e,c,m = self.gen_code(f"Code idea is: {o}. The current code is \n{c}\n .Enhance the code based on this feedback.", f"{self.no_markdown}", o) # raw code
         self.recursive_gpt(c, o)
         pass
 
 def main():
     recgpt = Recursive_GPT()
-    recgpt.recursive_gpt("generate a person", "generate a person")
+    # Enter code to generate here:
+    # code_idea = "generate a person"
+    # code_idea = "solve fizzbuzz"
+    # code_idea = "2 bots go on a date"
+    code_idea = "os analysis tool"
+    code_idea_dir = recgpt.clean_filename(code_idea)
+
+    if not os.path.exists(f"gen_code/{code_idea_dir}"):
+        os.makedirs(f"gen_code/{code_idea_dir}")
+
+    recgpt.recursive_gpt(code_idea, code_idea) # passed in twice to retain context during recursion
 
 if __name__ == "__main__":
     main()
