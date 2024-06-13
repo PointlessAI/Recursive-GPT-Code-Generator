@@ -68,22 +68,27 @@ class Recursive_GPT:
         self.save_file(c, f"gen_code/{self.clean_filename(o)}", f"{n}-{m}", "py")
         return e,c,m
 
-    def recursive_gpt(self, c, o, n):
+    def recursive_gpt(self, c, o, n, pl):
         print(c)
-        e,c,m = self.gen_code(f"Code idea is: {o}. The current code is \n{c}\n .Enhance the code based on this feedback. Include GUI code.", f"{self.no_markdown}", o, n) # raw code
+        e,c,m = self.gen_code(f"Code idea is: {o}. Language is: {pl}. The current code is \n{c}\n .Enhance the code based on this feedback. Always demo the code working", f"{self.no_markdown}", o, n) # raw code
         n+=1
-        self.recursive_gpt(c, o, n)
+        self.recursive_gpt(c, o, n, pl)
         pass
 
 def main():
     recgpt = Recursive_GPT()
     # Enter code to generate here:
-    # code_idea = "generate a person"
+    ###################################################################
+    pl = "Python"
+    code_idea = "2 bots go on a date"
+    ###################################################################
+
+    # Examples:
     # code_idea = "solve fizzbuzz"
     # code_idea = "2 bots go on a date"
-    # code_idea = "beautiful call to action" # Change filetype to html
     # code_idea = "local file viewer for linux"
-    code_idea = "desktop file manager for Linux"
+    # code_idea = "desktop file manager for Linux"
+
     code_idea_dir = recgpt.clean_filename(code_idea)
 
     if not os.path.exists(f"gen_code/{code_idea_dir}"):
@@ -91,7 +96,7 @@ def main():
 
     n=0#current code generation iteration
     
-    recgpt.recursive_gpt(code_idea, code_idea, n) # passed in twice to retain context during recursion
+    recgpt.recursive_gpt(code_idea, code_idea, n, pl) # passed in twice to retain context during recursion
 
 if __name__ == "__main__":
     main()
