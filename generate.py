@@ -13,11 +13,6 @@ class Recursive_GPT:
             api_key=os.environ.get("OPENAI_API_KEY"),
         )
 
-    def save_file(self, content, filepath, filename, ext):
-        with open(f"{filepath}/{filename}.{ext}", 'a') as file:
-            file.write(f"{content}\n")
-        print(f"File saved to {filepath}/{filename}.{ext}")
-
     def gen_code(self, prompt, guidance):
         # Guidance example: self.no_markdown
         response = self.client.chat.completions.create(
@@ -30,10 +25,7 @@ class Recursive_GPT:
             temperature=1.2,
             max_tokens=1000
         )
-
-        res = response.choices[0].message.content
-        self.save_file(res, "gen_code", "code", "py")
-        return res
+        return response.choices[0].message.content
 
     def recursive_gpt(self, i, o):
         print(i)
