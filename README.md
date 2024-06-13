@@ -6,6 +6,6 @@
 * enhance_script.py is advanced script generation
 * Scripts saved in /gen_code
 * Example Use - create a script to generate a custom Linux desktop file manager:
-![Update code idea and language](https://github.com/PointlessAa/recursive-gpt/blob/master/linux_gui.png)
+![Update code idea and language](https://github.com/PointlessAI/recursive-gpt/blob/master/linux_gui.png)
 * After 5 iterations:
 ![Desktop File Manager](https://github.com/PointlessAI/recursive-gpt/blob/master/desktop-file-manager.png)
