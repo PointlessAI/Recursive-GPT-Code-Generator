@@ -70,7 +70,7 @@ class Recursive_GPT:
 
     def recursive_gpt(self, c, o, n):
         print(c)
-        e,c,m = self.gen_code(f"Code idea is: {o}. The current code is \n{c}\n .Enhance the code based on this feedback.", f"{self.no_markdown}", o, n) # raw code
+        e,c,m = self.gen_code(f"Code idea is: {o}. The current code is \n{c}\n .Enhance the code based on this feedback. Include GUI code.", f"{self.no_markdown}", o, n) # raw code
         n+=1
         self.recursive_gpt(c, o, n)
         pass
@@ -82,7 +82,8 @@ def main():
     # code_idea = "solve fizzbuzz"
     # code_idea = "2 bots go on a date"
     # code_idea = "beautiful call to action" # Change filetype to html
-    code_idea = "local file viewer for linux"
+    # code_idea = "local file viewer for linux"
+    code_idea = "desktop file manager for Linux"
     code_idea_dir = recgpt.clean_filename(code_idea)
 
     if not os.path.exists(f"gen_code/{code_idea_dir}"):
