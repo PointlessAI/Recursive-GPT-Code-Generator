@@ -28,7 +28,7 @@ class Recursive_GPT:
         dash_filename = lower_case_filename.replace(" ", "-")
         return dash_filename
 
-    def gen_code(self, c, guidance, o):
+    def gen_code(self, c, guidance, o, n):
 
         enhancements = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -42,7 +42,7 @@ class Recursive_GPT:
         code = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": f"You engineer improvements to Python code based on feedback. The feedback is: \n{enhancements}\n."},
+                {"role": "system", "content": f"You engineer improvements to code, based on feedback. The feedback is: \n{enhancements}\n."},
                 {"role": "assistant", "content": f"{guidance}"},
                 {"role": "user", "content": c},
             ],
@@ -64,14 +64,15 @@ class Recursive_GPT:
         c = code.choices[0].message.content
         m = self.clean_filename(meta.choices[0].message.content) # clean and add dashes to filename
         print(m)
-
-        self.save_file(c, f"gen_code/{self.clean_filename(o)}", m, "py")
+        n+=1
+        self.save_file(c, f"gen_code/{self.clean_filename(o)}", f"{n}-{m}", "py")
         return e,c,m
 
-    def recursive_gpt(self, c, o):
+    def recursive_gpt(self, c, o, n):
         print(c)
-        e,c,m = self.gen_code(f"Code idea is: {o}. The current code is \n{c}\n .Enhance the code based on this feedback.", f"{self.no_markdown}", o) # raw code
-        self.recursive_gpt(c, o)
+        e,c,m = self.gen_code(f"Code idea is: {o}. The current code is \n{c}\n .Enhance the code based on this feedback.", f"{self.no_markdown}", o, n) # raw code
+        n+=1
+        self.recursive_gpt(c, o, n)
         pass
 
 def main():
@@ -80,13 +81,16 @@ def main():
     # code_idea = "generate a person"
     # code_idea = "solve fizzbuzz"
     # code_idea = "2 bots go on a date"
-    code_idea = "os analysis tool"
+    # code_idea = "beautiful call to action" # Change filetype to html
+    code_idea = "local file viewer for linux"
     code_idea_dir = recgpt.clean_filename(code_idea)
 
     if not os.path.exists(f"gen_code/{code_idea_dir}"):
         os.makedirs(f"gen_code/{code_idea_dir}")
 
-    recgpt.recursive_gpt(code_idea, code_idea) # passed in twice to retain context during recursion
+    n=0#current code generation iteration
+    
+    recgpt.recursive_gpt(code_idea, code_idea, n) # passed in twice to retain context during recursion
 
 if __name__ == "__main__":
     main()
