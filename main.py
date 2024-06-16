@@ -1,6 +1,6 @@
 import os
-from openai import OpenAI
-from dotenv import load_dotenv, find_dotenv
+from openai import OpenAI # type: ignore
+from dotenv import load_dotenv, find_dotenv # type: ignore
 import subprocess
 import sys
 
@@ -35,6 +35,7 @@ class Recursive_GPT:
         return dash_filename
 
     def run_python_script(self, script_content):
+        """
         try:
             # Attempt to compile the script content
             compile(script_content, '<string>', 'exec')
@@ -59,14 +60,14 @@ class Recursive_GPT:
             print("Script failed with error:\n", e.stderr)
             self.fix_code(script_content, e.stderr)
             return
-        """
+        #"""
 
     def fix_code(self, broken_code, e):
         analyse_error = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You analyse error messages in code and provide solutions."},
-                {"role": "assistant", "content": f"The user provided code has an error when executed.: \n{e}\n. Suggest a fix."},
+                {"role": "assistant", "content": f"The user provided code has an error when executed.: \n{e}\n. Access the internet and then suggest a fix."},
                 {"role": "user", "content": broken_code},
             ],
             temperature=1,
@@ -94,6 +95,7 @@ class Recursive_GPT:
         print(fixed_code)
         self.run_python_script(fixed_code)
 
+    gen_code_it = 0
     def gen_code(self, c, guidance, o, n):
         package_list = self.read_file("./", "requirements", "txt")
         enhancements = self.client.chat.completions.create(
@@ -124,7 +126,7 @@ class Recursive_GPT:
                 {"role": "user", "content": f"Generate a 5 word filename that summarizes the following enhancements: \n{enhancements}\n."}
             ],
             temperature=1,
-            max_tokens=40
+            max_tokens=50
         )
 
         e = enhancements.choices[0].message.content
@@ -137,6 +139,7 @@ class Recursive_GPT:
         m = self.clean_filename(meta.choices[0].message.content) # clean and add dashes to filename
         print(m)
         n+=1
+
         script_path = f"gen_code/{self.clean_filename(o)}"
         self.save_file(c, script_path, f"{n}-{m}", "py")
 
@@ -154,23 +157,31 @@ def main():
     # Enter code to generate here:
     ###################################################################
     pl = "Python"
-    code_idea = "Brute force login script for https://juice-shop.herokuapp.com/#/login"
+    code_idea = "two children playing"
+    regenerate_existing = 0 # Set to 0 to generate new code or 1 to continue with exisiting code (set path below)
     ###################################################################
 
     # Examples:
-    # code_idea = "solve fizzbuzz"
-    # code_idea = "2 bots go on a date"
     # code_idea = "local file viewer for linux"
     # code_idea = "desktop file manager for Linux"
+    # code_idea = "Crawl https://juice-shop.herokuapp.com"
+    # code_idea = "Brute force login script for https://juice-shop.herokuapp.com/#/login"
 
     code_idea_dir = recgpt.clean_filename(code_idea)
 
     if not os.path.exists(f"gen_code/{code_idea_dir}"):
         os.makedirs(f"gen_code/{code_idea_dir}")
 
-    n=0#current code generation iteration
-    
-    recgpt.recursive_gpt(code_idea, code_idea, n, pl) # passed in twice to retain context during recursion
+    # Set to 1 to continue with exisiting code
+    if regenerate_existing == 1:
+        filename = "5-bot-feel" # path of file to load
+        ext = "py"
+        n = int(filename[0]) # Continue from current file number
+        existing_code = recgpt.read_file("gen_code/" + code_idea_dir, filename, ext) # read file
+        recgpt.recursive_gpt(existing_code, code_idea, n, pl)
+    else:
+        n=0# current code generation iteration
+        recgpt.recursive_gpt(code_idea, code_idea, n, pl) # passed in twice to retain context during recursion
 
 if __name__ == "__main__":
     main()

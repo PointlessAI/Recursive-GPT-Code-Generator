@@ -121,6 +121,7 @@ psutil==5.9.8
 pwntools==4.12.0
 pyasn1==0.6.0
 pyasn1_modules==0.4.0
+pyClamd==0.4.0
 pycparser==2.22
 pycryptodomex==3.20.0
 pydantic==2.7.4
