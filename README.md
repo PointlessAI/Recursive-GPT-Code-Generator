@@ -19,6 +19,6 @@
 
 ## Load from existing
 * Example Use - Read and recursively enhance an existing script:
-![Update code idea and language](https://github.com/PointlessAI/recursive-gpt/blob/master/img/existing_2.jpg)
+![Update code idea and language](https://github.com/PointlessAI/recursive-gpt/blob/master/img/existing_0.jpg)
 * After 5 iterations:
 ![Desktop File Manager](https://github.com/PointlessAI/recursive-gpt/blob/master/img/existing_1.jpg)
