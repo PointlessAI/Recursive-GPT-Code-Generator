@@ -128,6 +128,7 @@ pydantic==2.7.4
 pydantic_core==2.18.4
 PyDispatcher==2.0.7
 pyelftools==0.31
+pygame==2.5.2
 Pygments==2.18.0
 pyinstaller==6.8.0
 pyinstaller-hooks-contrib==2024.7

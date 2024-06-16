@@ -35,32 +35,32 @@ class Recursive_GPT:
         return dash_filename
 
     def run_python_script(self, script_content):
-        """
-        try:
-            # Attempt to compile the script content
-            compile(script_content, '<string>', 'exec')
-            print("Script is syntactically correct.")
-            return 1
-        except SyntaxError as e:
-            # Handle the syntax error
-            print(f"Script has a syntax error:\n{e}")
-            self.fix_code(script_content, e)
-            return 0
-
-        """
-        # Alternative to compile
-        try:
-            result = subprocess.run([sys.executable, '-c', script_content], capture_output=True, text=True, check=True, timeout=50)
-            print(result.stdout)
-            print("Script executed successfully")
-            return 1
-        except subprocess.CalledProcessError as e:
-            print("Error: Script execution failed with exit code", e.returncode)
-            print("Output:", e.output)
-            print("Script failed with error:\n", e.stderr)
-            self.fix_code(script_content, e.stderr)
-            return
-        #"""
+        print(self.test_method)
+        if self.test_method == "static":
+            # Static testing
+            try:
+                # Attempt to compile the script content
+                compile(script_content, '<string>', 'exec')
+                print("Script is syntactically correct.")
+                return 1
+            except SyntaxError as e:
+                # Handle the syntax error
+                print(f"Script has a syntax error:\n{e}")
+                self.fix_code(script_content, e)
+                return 0
+        else:
+            # Dynamic testing
+            try:
+                result = subprocess.run([sys.executable, '-c', script_content], capture_output=True, text=True, check=True, timeout=50)
+                print(result.stdout)
+                print("Script executed successfully")
+                return 1
+            except subprocess.CalledProcessError as e:
+                print("Error: Script execution failed with exit code", e.returncode)
+                print("Output:", e.output)
+                print("Script failed with error:\n", e.stderr)
+                self.fix_code(script_content, e.stderr)
+                return
 
     def fix_code(self, broken_code, e):
         analyse_error = self.client.chat.completions.create(
@@ -156,16 +156,24 @@ def main():
     recgpt = Recursive_GPT()
     # Enter code to generate here:
     ###################################################################
-    pl = "Python"
-    code_idea = "emulate a robot that has feelings"
-    regenerate_existing = 0 # Set to 0 to generate new code or 1 to continue with exisiting code (set path below)
+    pl = "Linux GUI"
+    code_idea = "2 bots playing pong"
+    """
+    Test method
+    Scripts can either be executed to test for errors, or compiled to test. 
+    In general if you are generating scripts that take a long time or do not close it is best to only compile.
+    Scripts that end by themselves can be tested dynamically for greater accuracy.
+    Select:
+    dynamic: for short running scripts E.G. scan network
+    static: for running scripts E.G. launch a GUI
+    """
+    recgpt.test_method = "static" # dynamic | static
     ###################################################################
-
-    # Examples:
-    # code_idea = "local file viewer for linux"
-    # code_idea = "desktop file manager for Linux"
-    # code_idea = "Crawl https://juice-shop.herokuapp.com"
-    # code_idea = "Brute force login script for https://juice-shop.herokuapp.com/#/login"
+    # Modify the following only for existing code upload
+    regenerate_existing = 0 # 1 to load code, 2 to generate new code
+    filename = "5-bot-feel" # file to load
+    ext = "py"
+    ###################################################################
 
     code_idea_dir = recgpt.clean_filename(code_idea)
 
@@ -174,9 +182,10 @@ def main():
 
     # Set to 1 to continue with exisiting code
     if regenerate_existing == 1:
-        filename = "5-bot-feel" # path of file to load
-        ext = "py"
-        n = int(filename[0]) # Continue from current file number
+        try:
+            n = int(filename[0]) # Continue from current file number
+        except:
+            n = 0
         existing_code = recgpt.read_file("gen_code/" + code_idea_dir, filename, ext) # read file
         recgpt.recursive_gpt(existing_code, code_idea, n, pl)
     else:
