@@ -83,7 +83,7 @@ class Recursive_GPT:
             messages=[
                 {"role": "system", "content": f"You fix code based on an error message"},
                 {"role": "assistant", "content": f"The code has an error: \n{e}\n. the analysis of this error is: {error_analysis}"},
-                {"role": "user", "content": f"Based on the error anlaysis: {error_analysis} - Fix the error in the code: \n{broken_code}\n .{self.no_markdown}"},
+                {"role": "user", "content": f"Based on the error anlaysis: {error_analysis} - Access the internet and then fix the error in the code: \n{broken_code}\n .{self.no_markdown}"},
             ],
             temperature=1.2,
             max_tokens=1200
@@ -95,12 +95,13 @@ class Recursive_GPT:
         self.run_python_script(fixed_code)
 
     def gen_code(self, c, guidance, o, n):
-
+        package_list = self.read_file("./", "requirements", "txt")
         enhancements = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "assistant", "content": f"{guidance}"},
-                {"role": "user", "content": f"Code idea is: {o}. Suggest 3 enhancements to the following code to achive the idea: \n {c}"}
+                {"role": "assistant", "content": f"If importing Python modules use only the following modules: \n{package_list}\n"},
+                {"role": "user", "content": f"Code idea is: {o}. Suggest 3 enhancements to the following code to achieve the idea: \n {c}"}
             ],
             temperature=1.3,
             max_tokens=250
@@ -152,8 +153,8 @@ def main():
     recgpt = Recursive_GPT()
     # Enter code to generate here:
     ###################################################################
-    pl = "Linux GUI"
-    code_idea = "network traffic scanner showing ip packet details"
+    pl = "Python"
+    code_idea = "Brute force login script for https://juice-shop.herokuapp.com/#/login"
     ###################################################################
 
     # Examples:
