@@ -34,6 +34,21 @@ class Recursive_GPT:
         # Replace spaces with dashes
         dash_filename = lower_case_filename.replace(" ", "-")
         return dash_filename
+    
+    def helpful_assistant(self, pl, idea):
+        first_run = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": f"You are an application developer."},
+                {"role": "assistant", "content": f"Develop a {pl} script that implements the following product idea: {idea}"}
+            ],
+            temperature=1,
+            max_tokens=800
+        )
+
+        res = first_run.choices[0].message.content
+        print(res)
+        return res
 
     def run_python_script(self, script_content):
         print(self.test_method)
@@ -127,7 +142,7 @@ class Recursive_GPT:
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": c},
-                {"role": "assistant", "content": f"{guidance}"},
+                {"role": "assistant", "content": f"Output as a succint plain text list."},
                 {"role": "user", "content": f"Code idea is: {o}. Propose 3 features that can be added to the following code to enhance the functionality:\n {c}"}
             ],
             temperature=1.3,
@@ -149,14 +164,16 @@ class Recursive_GPT:
         meta = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "user", "content": f"Generate a 5 word filename that summarizes the following enhancements: \n{enhancements}\n."}
+                {"role": "user", "content": f"Generate a succint filename that summarizes the following enhancements: \n{enhancements}\n."}
             ],
             temperature=1,
             max_tokens=50
         )
 
         e = enhancements.choices[0].message.content
+        print("Enhancements: ")
         print(e)
+        print("-------------------------------------")
         c = code.choices[0].message.content
         
         # Test script
@@ -177,7 +194,7 @@ class Recursive_GPT:
             messages=[
                 {"role": "system", "content": f"You are a product manager"},
                 {"role": "assistant", "content": f"You are developing a software product."},
-                {"role": "user", "content": f"Product idea is: {ci}. Language is {pl}. Provide a list of the core requirements for this product."}
+                {"role": "user", "content": f"Product idea is: {ci}. Language is {pl}. Provide a succint list of the core requirements for this product."}
             ],
             temperature=1.3,
             max_tokens=400
@@ -205,7 +222,7 @@ def main():
     # Enter code to generate here:
     ###################################################################
     pl = "Linux GUI"
-    code_idea = "local file manager"
+    code_idea = "wireshark clone"
     """
     Test method
     Scripts can either be executed to test for errors, or compiled to test. 
@@ -220,7 +237,7 @@ def main():
     ###################################################################
     # Modify the following only for existing code upload
     regenerate_existing = 0 # 1 to load code, 2 to generate new code
-    filename = "5-bot-feel" # file to load
+    filename = "" # file to load
     ext = "py"
     ###################################################################
 
@@ -240,7 +257,8 @@ def main():
         recgpt.recursive_gpt(existing_code, code_idea, n, pl, pr)
     else:
         n=0# current code generation iteration
-        recgpt.recursive_gpt(code_idea, code_idea, n, pl, pr) # passed in twice to retain context during recursion
+        first_run = recgpt.helpful_assistant(pl, code_idea)
+        recgpt.recursive_gpt(first_run, code_idea, n, pl, pr)
 
 if __name__ == "__main__":
     main()
