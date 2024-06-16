@@ -64,7 +64,7 @@ class Recursive_GPT:
 
     def fix_code(self, broken_code, e):
         analyse_error = self.client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": f"You analyse error messages in code and provide solutions."},
                 {"role": "assistant", "content": f"The user provided code has an error when executed.: \n{e}\n. Access the internet and then suggest a fix."},
@@ -84,7 +84,7 @@ class Recursive_GPT:
             messages=[
                 {"role": "system", "content": f"You fix code based on an error message"},
                 {"role": "assistant", "content": f"The code has an error: \n{e}\n. the analysis of this error is: {error_analysis}"},
-                {"role": "user", "content": f"Based on the error anlaysis: {error_analysis} - Access the internet and then fix the error in the code: \n{broken_code}\n .{self.no_markdown}"},
+                {"role": "user", "content": f"Based on the error anlaysis: {error_analysis} - Fix the error in the code: \n{broken_code}\n .{self.no_markdown}"},
             ],
             temperature=1.2,
             max_tokens=1200
