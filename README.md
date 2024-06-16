@@ -25,7 +25,7 @@
 
 ## Testing Options
 * Generated scripts are tested on the fly. If a script produces a GUI or runs a long time then it is best to test through compiling only.
-* Select static (compile only) or dynamic (exec ful script) testing depending on requirements:
+* Select static (compile only) or dynamic (exec full script) testing depending on requirements:
 ![Select testing method](https://github.com/PointlessAI/recursive-gpt/blob/master/img/testing.jpg)
 * After 5 iterations:
 ![Pong](https://github.com/PointlessAI/recursive-gpt/blob/master/img/testing2.jpg)

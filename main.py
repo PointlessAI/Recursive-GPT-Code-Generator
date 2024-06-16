@@ -2,12 +2,13 @@ import os
 from openai import OpenAI # type: ignore
 from dotenv import load_dotenv, find_dotenv # type: ignore
 import subprocess
+from subprocess import TimeoutExpired
 import sys
 
 class Recursive_GPT:
     no_markdown =  "Return only the raw working code. Do not include any text or comments, just the raw code. Strictly output the working code only with no markdown. Just the raw code. ' \
                     Do not include any markdown such as ```php or ```python as this will break the script. Strictly no comments, markdown or description. Just working code. The reason is that it will be executed dynamically so any broken code will cause an execution failiure."
-
+    enhance_protocol = "You develop code, if you are provided code then your objective is to enhance the code by adding new design and functionality."
     def __init__(self):
         # Initialize with ChatGPT API
         _ = load_dotenv(find_dotenv())
@@ -51,8 +52,11 @@ class Recursive_GPT:
         else:
             # Dynamic testing
             try:
-                result = subprocess.run([sys.executable, '-c', script_content], capture_output=True, text=True, check=True, timeout=50)
+                result = subprocess.run([sys.executable, '-c', script_content], capture_output=True, text=True, check=True, timeout=5)
                 print(result.stdout)
+                print("Script executed successfully")
+                return 1
+            except TimeoutExpired:
                 print("Script executed successfully")
                 return 1
             except subprocess.CalledProcessError as e:
@@ -64,10 +68,10 @@ class Recursive_GPT:
 
     def fix_code(self, broken_code, e):
         analyse_error = self.client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You analyse error messages in code and provide solutions."},
-                {"role": "assistant", "content": f"The user provided code has an error when executed.: \n{e}\n. Access the internet and then suggest a fix."},
+                {"role": "assistant", "content": f"You will be provided some code. This code generates the following error when executed: \n{e}\n. Access the internet and then provide a solution to fix the code."},
                 {"role": "user", "content": broken_code},
             ],
             temperature=1,
@@ -78,46 +82,68 @@ class Recursive_GPT:
         print("-----------------------------")
         print(e)
         print(error_analysis)
+        print("Attempting to fix code..........")
+        print("-----------------------------")
 
         fix_code = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": f"You fix code based on an error message"},
-                {"role": "assistant", "content": f"The code has an error: \n{e}\n. the analysis of this error is: {error_analysis}"},
-                {"role": "user", "content": f"Based on the error anlaysis: {error_analysis} - Fix the error in the code: \n{broken_code}\n .{self.no_markdown}"},
+                {"role": "system", "content": f"You fix broken code. {self.no_markdown}"},
+                {"role": "assistant", "content": f"You will be provided some code. This code generates the following error when executed: \n{e}\n. the error analysis is: {error_analysis}."},
+                {"role": "user", "content": f"The code is: \n{broken_code}\n. Fix the error in the line of code based on the error anlaysis. {self.no_markdown}."},
             ],
-            temperature=1.2,
-            max_tokens=1200
+            temperature=1,
+            max_tokens=600
         )
 
         fixed_code = fix_code.choices[0].message.content
         print("-----------------------------")
+        print("Code fix complete. Fixed code is:")
         print(fixed_code)
-        self.run_python_script(fixed_code)
+        print("-----------------------------")
 
-    gen_code_it = 0
+        merge_fix = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": f"You are a software developer. {self.no_markdown}"},
+                {"role": "assistant", "content": f"You will be provided a broken script along with the solution code. Return the full working code."},
+                {"role": "user", "content": f"The code is: \n{broken_code}\n. Merge the fix: {fixed_code}. {self.no_markdown}."},
+            ],
+            temperature=1,
+            max_tokens=1200
+        )
+
+        merged_code = merge_fix.choices[0].message.content
+        print("-----------------------------")
+        print("Code merged:")
+        print(merged_code)
+        print("-----------------------------")
+
+        self.run_python_script(merged_code)
+
     def gen_code(self, c, guidance, o, n):
         package_list = self.read_file("./", "requirements", "txt")
         enhancements = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
+                {"role": "system", "content": c},
                 {"role": "assistant", "content": f"{guidance}"},
-                {"role": "assistant", "content": f"If importing Python modules use only the following modules: \n{package_list}\n"},
-                {"role": "user", "content": f"Code idea is: {o}. Suggest 3 enhancements to the following code to achieve the idea: \n {c}"}
+                {"role": "user", "content": f"Code idea is: {o}. Propose 3 features that can be added to the following code to enhance the functionality:\n {c}"}
             ],
             temperature=1.3,
-            max_tokens=250
+            max_tokens=500
         )
 
         code = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": f"You engineer improvements to code, based on provided feedback."},
-                {"role": "assistant", "content": f"The feedback is: \n{enhancements}\n. {guidance}"},
+                {"role": "system", "content": f"You make improvements to code, based on provided feedback."},
+                {"role": "assistant", "content": f"If using Python packages use only the following packages: \n{package_list}\n"},
+                {"role": "assistant", "content": f"The feedback is: \n{enhancements}\n Always include a main method to output the working code. {guidance} {self.enhance_protocol}"},
                 {"role": "user", "content": c},
             ],
             temperature=1,
-            max_tokens=1000
+            max_tokens=1200
         )
 
         meta = self.client.chat.completions.create(
@@ -144,30 +170,53 @@ class Recursive_GPT:
         self.save_file(c, script_path, f"{n}-{m}", "py")
 
         return e,c,m
+    
+    def gen_requirements(self, ci, pl):
+        requirements = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": f"You are a product manager"},
+                {"role": "assistant", "content": f"You are developing a software product."},
+                {"role": "user", "content": f"Product idea is: {ci}. Language is {pl}. Provide a list of the core requirements for this product."}
+            ],
+            temperature=1.3,
+            max_tokens=400
+        )
 
-    def recursive_gpt(self, c, o, n, pl):
+        r = requirements.choices[0].message.content
+        print("-----------------------------")
+        print("Requirements: ")
+        print(r)
+        print("-----------------------------")
+        return r
+
+    def recursive_gpt(self, c, o, n, pl, pr):
         print(c)
-        e,c,m = self.gen_code(f"Code idea is: {o}. Language is: {pl}. The current code is \n{c}\n .Enhance the code based on provided feedback. Always demo the code working", f"{self.no_markdown}", o, n) # raw code
+        e,c,m = self.gen_code(f"You are a software developer. You are developing a product. The product idea is: {o}. Language is: {pl}. \
+                              The current code is \n{c}\n .Enhance the code based on provided feedback. \
+                              The outputted code must meet each item listed in the product requirements: \n{pr}\n \
+                              Always include a main method to output the working code.", f"{self.no_markdown} {self.enhance_protocol}", o, n)
         n+=1
-        self.recursive_gpt(c, o, n, pl)
-        pass
+        print(pr)
+        self.recursive_gpt(c, o, n, pl, pr)
 
 def main():
     recgpt = Recursive_GPT()
     # Enter code to generate here:
     ###################################################################
     pl = "Linux GUI"
-    code_idea = "2 bots playing pong"
+    code_idea = "local file manager"
     """
     Test method
     Scripts can either be executed to test for errors, or compiled to test. 
-    In general if you are generating scripts that take a long time or do not close it is best to only compile.
+    In general you can leave as dynamic
+    To debug persistant scripts that run a long time or do not close naturally you can try staticy
     Scripts that end by themselves can be tested dynamically for greater accuracy.
     Select:
     dynamic: for short running scripts E.G. scan network
     static: for running scripts E.G. launch a GUI
     """
-    recgpt.test_method = "static" # dynamic | static
+    recgpt.test_method = "dynamic" # dynamic | static
     ###################################################################
     # Modify the following only for existing code upload
     regenerate_existing = 0 # 1 to load code, 2 to generate new code
@@ -176,6 +225,7 @@ def main():
     ###################################################################
 
     code_idea_dir = recgpt.clean_filename(code_idea)
+    pr = recgpt.gen_requirements(code_idea, pl)
 
     if not os.path.exists(f"gen_code/{code_idea_dir}"):
         os.makedirs(f"gen_code/{code_idea_dir}")
@@ -187,10 +237,10 @@ def main():
         except:
             n = 0
         existing_code = recgpt.read_file("gen_code/" + code_idea_dir, filename, ext) # read file
-        recgpt.recursive_gpt(existing_code, code_idea, n, pl)
+        recgpt.recursive_gpt(existing_code, code_idea, n, pl, pr)
     else:
         n=0# current code generation iteration
-        recgpt.recursive_gpt(code_idea, code_idea, n, pl) # passed in twice to retain context during recursion
+        recgpt.recursive_gpt(code_idea, code_idea, n, pl, pr) # passed in twice to retain context during recursion
 
 if __name__ == "__main__":
     main()
