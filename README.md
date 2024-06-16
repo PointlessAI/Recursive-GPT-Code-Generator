@@ -13,12 +13,12 @@
 
 ## Generate from scratch
 * Example Use - create a script to generate a custom Linux desktop file manager:
-![Update code idea and language](https://github.com/PointlessAI/recursive-gpt/img/blob/master/linux_gui.png)
+![Update code idea and language](https://github.com/PointlessAI/recursive-gpt/blob/master/img/linux_gui.png)
 * After 5 iterations:
-![Desktop File Manager](https://github.com/PointlessAI/recursive-gpt/img/blob/master/desktop-file-manager.png)
+![Desktop File Manager](https://github.com/PointlessAI/recursive-gpt/blob/master/img/desktop-file-manager.png)
 
 ## Load from existing
 * Example Use - Read and recursively enhance an existing script:
-![Update code idea and language](https://github.com/PointlessAI/recursive-gpt/img/blob/master/existing_2.jpg)
+![Update code idea and language](https://github.com/PointlessAI/recursive-gpt/blob/master/img/existing_2.jpg)
 * After 5 iterations:
-![Desktop File Manager](https://github.com/PointlessAI/recursive-gpt/img/blob/master/existing_1.jpg)
+![Desktop File Manager](https://github.com/PointlessAI/recursive-gpt/blob/master/img/existing_1.jpg)
