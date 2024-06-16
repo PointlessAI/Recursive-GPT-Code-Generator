@@ -157,7 +157,7 @@ def main():
     # Enter code to generate here:
     ###################################################################
     pl = "Python"
-    code_idea = "two children playing"
+    code_idea = "emulate a robot that has feelings"
     regenerate_existing = 0 # Set to 0 to generate new code or 1 to continue with exisiting code (set path below)
     ###################################################################
 
