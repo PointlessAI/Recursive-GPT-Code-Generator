@@ -4,11 +4,15 @@ from dotenv import load_dotenv, find_dotenv # type: ignore
 import subprocess
 from subprocess import TimeoutExpired
 import sys
+import getpass
 
 class Recursive_GPT:
     no_markdown =  "Return only the raw working code. Do not include any text or comments, just the raw code. Strictly output the working code only with no markdown. Just the raw code. ' \
                     Do not include any markdown such as ```php or ```python as this will break the script. Strictly no comments, markdown or description. Just working code. The reason is that it will be executed dynamically so any broken code will cause an execution failiure."
     enhance_protocol = "You develop code, if you are provided code then your objective is to enhance the code by adding new design and functionality."
+    sudo_password = 0
+    use_sudo = 0
+
     def __init__(self):
         # Initialize with ChatGPT API
         _ = load_dotenv(find_dotenv())
@@ -26,6 +30,41 @@ class Recursive_GPT:
             file_content = file.read()
         return(file_content)
 
+    def get_debug_info(self):
+        info = []
+        
+        # Current working directory
+        cwd = os.getcwd()
+        info.append(f"Current working directory: {cwd}")
+        
+        # Current directory where the script is located
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        info.append(f"Script directory: {script_dir}")
+        
+        # Home directory
+        home_dir = os.path.expanduser("~")
+        info.append(f"Home directory: {home_dir}")
+        
+        # Current file name
+        script_name = os.path.basename(__file__)
+        info.append(f"Script name: {script_name}")
+        
+        # Python executable location
+        python_executable = sys.executable
+        info.append(f"Python executable: {python_executable}")
+        
+        # List all files and directories in the current working directory
+        cwd_contents = os.listdir(cwd)
+        info.append(f"Contents of the current working directory: {cwd_contents}")
+        
+        # Current environment variables
+        env_vars = os.environ
+        env_vars_info = "\n".join([f"{key}: {value}" for key, value in env_vars.items()])
+        info.append("Environment variables:")
+        info.append(env_vars_info)
+        
+        return "\n".join(info)
+
     def clean_filename(self, name):
         # Remove any trailing whitespace including newline character
         filename = name.strip()
@@ -39,8 +78,9 @@ class Recursive_GPT:
         first_run = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": f"You are an application developer."},
-                {"role": "assistant", "content": f"Develop a {pl} script that implements the following product idea: {idea}"}
+                {"role": "system", "content": f"You are a software developer."},
+                {"role": "assistant", "content": f"Develop a {pl} script that implements the provided idea. The code should not require any user input and should run automatically. {self.no_markdown}"},
+                {"role": "user", "content": f"Develop a {pl} script that implements the following product idea: {idea}"}
             ],
             temperature=1,
             max_tokens=800
@@ -50,8 +90,9 @@ class Recursive_GPT:
         print(res)
         return res
 
-    def run_python_script(self, script_content):
+    def run_python_script(self, script_content, use_sudo=0):
         print(self.test_method)
+        print("Running script...")
         if self.test_method == "static":
             # Static testing
             try:
@@ -67,7 +108,12 @@ class Recursive_GPT:
         else:
             # Dynamic testing
             try:
-                result = subprocess.run([sys.executable, '-c', script_content], capture_output=True, text=True, check=True, timeout=5)
+                if use_sudo:
+                    sudo_password = getpass.getpass("Enter your sudo password: ")
+                    sudo_command = f"echo {sudo_password} | sudo -S {sys.executable} -c {script_content}"
+                    result = subprocess.run(sudo_command, shell=True, capture_output=True, text=True, check=True, timeout=5)
+                else:
+                    result = subprocess.run([sys.executable, '-c', script_content], capture_output=True, text=True, check=True, timeout=5)
                 print(result.stdout)
                 print("Script executed successfully")
                 return 1
@@ -78,36 +124,99 @@ class Recursive_GPT:
                 print("Error: Script execution failed with exit code", e.returncode)
                 print("Output:", e.output)
                 print("Script failed with error:\n", e.stderr)
-                self.fix_code(script_content, e.stderr)
-                return
+                #install_words = ["pip", "install", "apt","ModuleNotFoundError"]
+                #sudo_words = ["permission", "denied", "sudo", "root"]
+                if "ModuleNotFoundError" in e.stderr:
+                    self.install_actions(e.stderr)
+                else:
+                    broken_code, error_analysis_res = self.error_analysis(script_content, e.stderr)
+                    self.fix_code(broken_code, error_analysis_res)
+                return 0
 
-    def fix_code(self, broken_code, e):
-        analyse_error = self.client.chat.completions.create(
+    def install_actions(self, e):
+        # if script requires install:
+        shell_install = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": f"You analyse error messages in code and provide solutions."},
-                {"role": "assistant", "content": f"You will be provided some code. This code generates the following error when executed: \n{e}\n. Access the internet and then provide a solution to fix the code."},
-                {"role": "user", "content": broken_code},
+                {"role": "system", "content": f"You convert error messages to raw shell commands"},
+                {"role": "assistant", "content": f"You will be provided and error message. The message will indicate a missing package or library. Find the correct install command for the environment. {self.no_markdown}"},
+                {"role": "user", "content": f"The error message is \n{e}\n. Return only the raw bash shell command without sudo to resolve this error. E.G. pip install jq, or apt install. {self.no_markdown}"},
             ],
-            temperature=1,
+            temperature=1.1,
             max_tokens=200
         )
 
+        shell_command = shell_install.choices[0].message.content
+        print("-------------INSTALL SHELL COMMAND:----------------")
+        print(e)
+        print(shell_command)
+        self.install_package(shell_command)
+        return
+
+    def install_package(self, install_command):
+        confirm = input(f"\nThis script wants to install: {install_command}. \n y or n\n")
+        if confirm.lower() == "y":
+            if self.sudo_password == 0:
+                self.sudo_password = getpass.getpass("Enter your sudo password: ")
+                sudo_command = f"echo {self.sudo_password} | sudo -S {install_command}"
+            try:
+                # Install the package using the provided command
+                subprocess.check_call(install_command, shell=True)
+                print("Package has been installed successfully.")
+            except subprocess.CalledProcessError as e:
+                try:
+                    print(f"Failed to install the package without sudo. Error: {e}. \n Trying with sudo...")
+                    subprocess.check_call(sudo_command, shell=True)
+                except subprocess.CalledProcessError as e:
+                    print(f"Failed to install the package. Error: {e}")
+        else: 
+            print(f"please manually install: \n{install_command}\n")
+            exit(0)
+        return
+
+################################################################
+
+    def error_analysis(self, broken_code, e):
+        advanced_error = ""
+        if "FileNotFoundError" in e:
+            print("The path could not be found, implementing local path fix...")
+            debug_info = self.get_debug_info()
+            advanced_error = f"There is a file not found error. Consult the following environmental variables and paths to fix: {debug_info}"
+        elif "PermissionError" in e or "root" in e or "sudo" in e:
+            advanced_error = "There is a permissions error. Try sudo...."
+            self.use_sudo=1
+            if self.sudo_password == 0:
+                self.sudo_password = getpass.getpass("Check command and if ok then enter your sudo password: ")
+
+    
+        analyse_error = self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": f"You analyse error messages in code and provide solutions."},
+                {"role": "assistant", "content": f"You will be provided some code. This code is broken and generates the following error when executed: \n{e}\n. Find the solution to fix the code. {self.no_markdown}"},
+                {"role": "user", "content": f"broken code is: {broken_code}. Error is: {e}. {advanced_error}"},
+            ],
+            temperature=1.2,
+            max_tokens=600
+        )
+
         error_analysis = analyse_error.choices[0].message.content
-        print("-----------------------------")
+        print("--------------ERROR ANALYSIS---------------")
         print(e)
         print(error_analysis)
-        print("Attempting to fix code..........")
-        print("-----------------------------")
+        return broken_code, error_analysis
 
+########################################################################
+
+    def fix_code(self, broken_code, e):
         fix_code = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You fix broken code. {self.no_markdown}"},
-                {"role": "assistant", "content": f"You will be provided some code. This code generates the following error when executed: \n{e}\n. the error analysis is: {error_analysis}."},
-                {"role": "user", "content": f"The code is: \n{broken_code}\n. Fix the error in the line of code based on the error anlaysis. {self.no_markdown}."},
+                {"role": "assistant", "content": f"You will be provided with a broken script, along with the error causing the script to fail. {self.no_markdown}"},
+                {"role": "user", "content": f"The code is: \n{broken_code}\n. Fix the error in the line of code based on the error anlaysis: {e}. Return only the fixed the line of code. {self.no_markdown}"},
             ],
-            temperature=1,
+            temperature=1.2,
             max_tokens=600
         )
 
@@ -121,10 +230,10 @@ class Recursive_GPT:
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You are a software developer. {self.no_markdown}"},
-                {"role": "assistant", "content": f"You will be provided a broken script along with the solution code. Return the full working code."},
-                {"role": "user", "content": f"The code is: \n{broken_code}\n. Merge the fix: {fixed_code}. {self.no_markdown}."},
+                {"role": "assistant", "content": f"You will be provided with a broken script, along with the solution code. Return the fixed script. {self.no_markdown}."},
+                {"role": "user", "content": f"The code is: \n{broken_code}\n. The error is: \n{e}\n Merge the fix to fix the broken code. The fix is: \n{fixed_code}\n. Return the full working script. {self.no_markdown}"},
             ],
-            temperature=1,
+            temperature=1.1,
             max_tokens=1200
         )
 
@@ -133,11 +242,15 @@ class Recursive_GPT:
         print("Code merged:")
         print(merged_code)
         print("-----------------------------")
+        if self.use_sudo == 0:
+            self.run_python_script(merged_code)
+        else:
+            self.use_sudo=1
+            self.run_python_script(merged_code, self.use_sudo)
 
-        self.run_python_script(merged_code)
+##########################################################################
 
     def gen_code(self, c, guidance, o, n):
-        package_list = self.read_file("./", "requirements", "txt")
         enhancements = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -153,7 +266,6 @@ class Recursive_GPT:
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You make improvements to code, based on provided feedback."},
-                {"role": "assistant", "content": f"If using Python packages use only the following packages: \n{package_list}\n"},
                 {"role": "assistant", "content": f"The feedback is: \n{enhancements}\n Always include a main method to output the working code. {guidance} {self.enhance_protocol}"},
                 {"role": "user", "content": c},
             ],
@@ -211,18 +323,19 @@ class Recursive_GPT:
         print(c)
         e,c,m = self.gen_code(f"You are a software developer. You are developing a product. The product idea is: {o}. Language is: {pl}. \
                               The current code is \n{c}\n .Enhance the code based on provided feedback. \
+                              The code should not require any user input and should run automatically. \
                               The outputted code must meet each item listed in the product requirements: \n{pr}\n \
                               Always include a main method to output the working code.", f"{self.no_markdown} {self.enhance_protocol}", o, n)
         n+=1
-        print(pr)
+        # print(pr) # Product requirements
         self.recursive_gpt(c, o, n, pl, pr)
 
 def main():
     recgpt = Recursive_GPT()
     # Enter code to generate here:
     ###################################################################
-    pl = "Linux GUI"
-    code_idea = "wireshark clone"
+    pl = "Python"
+    code_idea = "chroot"
     """
     Test method
     Scripts can either be executed to test for errors, or compiled to test. 
