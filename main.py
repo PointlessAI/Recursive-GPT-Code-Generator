@@ -37,17 +37,9 @@ class Recursive_GPT:
         cwd = os.getcwd()
         info.append(f"Current working directory: {cwd}")
         
-        # Current directory where the script is located
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        info.append(f"Script directory: {script_dir}")
-        
         # Home directory
         home_dir = os.path.expanduser("~")
         info.append(f"Home directory: {home_dir}")
-        
-        # Current file name
-        script_name = os.path.basename(__file__)
-        info.append(f"Script name: {script_name}")
         
         # Python executable location
         python_executable = sys.executable
@@ -56,12 +48,6 @@ class Recursive_GPT:
         # List all files and directories in the current working directory
         cwd_contents = os.listdir(cwd)
         info.append(f"Contents of the current working directory: {cwd_contents}")
-        
-        # Current environment variables
-        env_vars = os.environ
-        env_vars_info = "\n".join([f"{key}: {value}" for key, value in env_vars.items()])
-        info.append("Environment variables:")
-        info.append(env_vars_info)
         
         return "\n".join(info)
 
@@ -80,7 +66,7 @@ class Recursive_GPT:
             messages=[
                 {"role": "system", "content": f"You are a software developer."},
                 {"role": "assistant", "content": f"Develop a {pl} script that implements the provided idea. The code should not require any user input and should run automatically. {self.no_markdown}"},
-                {"role": "user", "content": f"Develop a {pl} script that implements the following product idea: {idea}"}
+                {"role": "user", "content": f"Develop a {pl} script that implements the following product idea: {idea}. Do not use path placeholders, Use real paths as per the following: {self.get_debug_info()}. "}
             ],
             temperature=1,
             max_tokens=800
@@ -90,7 +76,7 @@ class Recursive_GPT:
         print(res)
         return res
 
-    def run_python_script(self, script_content, use_sudo=0):
+    def run_python_script(self, script_content):
         print(self.test_method)
         print("Running script...")
         if self.test_method == "static":
@@ -108,11 +94,12 @@ class Recursive_GPT:
         else:
             # Dynamic testing
             try:
-                if use_sudo:
-                    sudo_password = getpass.getpass("Enter your sudo password: ")
-                    sudo_command = f"echo {sudo_password} | sudo -S {sys.executable} -c {script_content}"
+                if self.use_sudo:
+                    print("Using sudo")
+                    sudo_command = f"sudo -S {sys.executable} -c {script_content}"
                     result = subprocess.run(sudo_command, shell=True, capture_output=True, text=True, check=True, timeout=5)
                 else:
+                    print("Not using sudo")
                     result = subprocess.run([sys.executable, '-c', script_content], capture_output=True, text=True, check=True, timeout=5)
                 print(result.stdout)
                 print("Script executed successfully")
@@ -124,8 +111,6 @@ class Recursive_GPT:
                 print("Error: Script execution failed with exit code", e.returncode)
                 print("Output:", e.output)
                 print("Script failed with error:\n", e.stderr)
-                #install_words = ["pip", "install", "apt","ModuleNotFoundError"]
-                #sudo_words = ["permission", "denied", "sudo", "root"]
                 if "ModuleNotFoundError" in e.stderr:
                     self.install_actions(e.stderr)
                 else:
@@ -156,11 +141,9 @@ class Recursive_GPT:
     def install_package(self, install_command):
         confirm = input(f"\nThis script wants to install: {install_command}. \n y or n\n")
         if confirm.lower() == "y":
-            if self.sudo_password == 0:
-                self.sudo_password = getpass.getpass("Enter your sudo password: ")
-                sudo_command = f"echo {self.sudo_password} | sudo -S {install_command}"
+            self.sudo_password = getpass.getpass("Enter your sudo password: ")
+            sudo_command = f"echo {self.sudo_password} | sudo -S {install_command}"
             try:
-                # Install the package using the provided command
                 subprocess.check_call(install_command, shell=True)
                 print("Package has been installed successfully.")
             except subprocess.CalledProcessError as e:
@@ -181,13 +164,12 @@ class Recursive_GPT:
         if "FileNotFoundError" in e:
             print("The path could not be found, implementing local path fix...")
             debug_info = self.get_debug_info()
-            advanced_error = f"There is a file not found error. Consult the following environmental variables and paths to fix: {debug_info}"
-        elif "PermissionError" in e or "root" in e or "sudo" in e:
+            advanced_error = f"There is a path error. Replace any placeholder paths in the script with real working values based on: {debug_info}"
+        elif "PermissionError" in e or "root" in e or "sudo" in e or "Operation not permitted" in e:
             advanced_error = "There is a permissions error. Try sudo...."
-            self.use_sudo=1
-            if self.sudo_password == 0:
-                self.sudo_password = getpass.getpass("Check command and if ok then enter your sudo password: ")
-
+            self.use_sudo = input("Allow root access? Y or N: ")
+            if self.use_sudo.lower() == "y":
+                self.use_sudo=1
     
         analyse_error = self.client.chat.completions.create(
             model="gpt-4o-mini",
@@ -230,11 +212,11 @@ class Recursive_GPT:
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You are a software developer. {self.no_markdown}"},
-                {"role": "assistant", "content": f"You will be provided with a broken script, along with the solution code. Return the fixed script. {self.no_markdown}."},
-                {"role": "user", "content": f"The code is: \n{broken_code}\n. The error is: \n{e}\n Merge the fix to fix the broken code. The fix is: \n{fixed_code}\n. Return the full working script. {self.no_markdown}"},
+                {"role": "assistant", "content": f"You will be provided with a broken script, along with the solution code. Return the fixed script. {self.no_markdown}. Do not use path placeholders, Use real paths as per the following: {self.get_debug_info()}."},
+                {"role": "user", "content": f"The code is: \n{broken_code}\n. The error is: \n{e}\n Merge the fix to fix the broken code. Do not use path placeholders, Use real paths as per the following: {self.get_debug_info()}. The error has been analysed and the provided fix is: \n{fixed_code}\n. Return the full working script. {self.no_markdown}"},
             ],
             temperature=1.1,
-            max_tokens=1200
+            max_tokens=1400
         )
 
         merged_code = merge_fix.choices[0].message.content
@@ -246,7 +228,7 @@ class Recursive_GPT:
             self.run_python_script(merged_code)
         else:
             self.use_sudo=1
-            self.run_python_script(merged_code, self.use_sudo)
+            self.run_python_script(merged_code)
 
 ##########################################################################
 
@@ -266,11 +248,11 @@ class Recursive_GPT:
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You make improvements to code, based on provided feedback."},
-                {"role": "assistant", "content": f"The feedback is: \n{enhancements}\n Always include a main method to output the working code. {guidance} {self.enhance_protocol}"},
-                {"role": "user", "content": c},
+                {"role": "assistant", "content": f"The feedback is: \n{enhancements}\n Always include a main method to output the working code. {guidance} {self.enhance_protocol}. Do not use path placeholders, Use real paths as per the following: {self.get_debug_info()}."},
+                {"role": "user", "content": f"Provided code is: {c}. Output instructions: {self.no_markdown}. Do not use path placeholders, Use real paths as per the following: {self.get_debug_info()}."},
             ],
-            temperature=1,
-            max_tokens=1200
+            temperature=1.1,
+            max_tokens=1400
         )
 
         meta = self.client.chat.completions.create(
